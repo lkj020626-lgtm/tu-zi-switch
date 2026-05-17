@@ -51,5 +51,20 @@ export const geminiProviderPresets: GeminiProviderPreset[] = [
       textColor: "#FFFFFF",
     },
   },
+  {
+    name: "TheRouter",
+    websiteUrl: "https://therouter.ai",
+    apiKeyUrl: "https://dashboard.therouter.ai",
+    settingsConfig: {
+      env: {
+        GOOGLE_GEMINI_BASE_URL: "https://api.therouter.ai",
+        GEMINI_MODEL: "gemini-3.1-pro",
+      },
+    },
+    baseURL: "https://api.therouter.ai",
+    model: "gemini-3.1-pro",
+    category: "aggregator",
+    endpointCandidates: ["https://api.therouter.ai"],
+  },
 ];
 

@@ -105,4 +105,50 @@ export const openclawProviderPresets: OpenClawProviderPreset[] = [
       },
     },
   },
+  {
+    name: "TheRouter",
+    websiteUrl: "https://therouter.ai",
+    apiKeyUrl: "https://dashboard.therouter.ai",
+    settingsConfig: {
+      baseUrl: "https://api.therouter.ai/v1",
+      apiKey: "",
+      api: "openai-completions",
+      models: [
+        {
+          id: "anthropic/claude-sonnet-4.6",
+          name: "Claude Sonnet 4.6",
+          contextWindow: 200000,
+          cost: { input: 3, output: 15 },
+        },
+        {
+          id: "openai/gpt-5.3-codex",
+          name: "GPT-5.3 Codex",
+          contextWindow: 200000,
+          cost: { input: 5, output: 15 },
+        },
+        {
+          id: "openai/gpt-5.2",
+          name: "GPT-5.2",
+          contextWindow: 128000,
+          cost: { input: 5, output: 15 },
+        },
+        {
+          id: "google/gemini-3-flash-preview",
+          name: "Gemini 3 Flash",
+          contextWindow: 1000000,
+          cost: { input: 0.5, output: 1.5 },
+        },
+      ],
+    },
+    category: "aggregator",
+    suggestedDefaults: {
+      model: {
+        primary: "therouter/anthropic/claude-sonnet-4.6",
+        fallbacks: [
+          "therouter/openai/gpt-5.2",
+          "therouter/google/gemini-3-flash-preview",
+        ],
+      },
+    },
+  },
 ];

@@ -92,5 +92,83 @@ export const providerPresets: ProviderPreset[] = [
       textColor: "#FFFFFF",
     },
   },
+  {
+    name: "AWS Bedrock (AKSK)",
+    websiteUrl: "https://aws.amazon.com/bedrock",
+    settingsConfig: {
+      env: {
+        ANTHROPIC_BASE_URL:
+          "https://bedrock-runtime.${AWS_REGION}.amazonaws.com",
+        ANTHROPIC_AUTH_TOKEN: "",
+        AWS_ACCESS_KEY_ID: "",
+        AWS_SECRET_ACCESS_KEY: "",
+        AWS_REGION: "us-west-2",
+        CLAUDE_CODE_USE_BEDROCK: "1",
+        ANTHROPIC_MODEL: "anthropic.claude-sonnet-4-6-20250514-v1:0",
+      },
+    },
+    category: "cloud_provider",
+    icon: "aws",
+    templateValues: {
+      AWS_ACCESS_KEY_ID: {
+        label: "Access Key ID",
+        placeholder: "AKIA...",
+        editorValue: "",
+      },
+      AWS_SECRET_ACCESS_KEY: {
+        label: "Secret Access Key",
+        placeholder: "",
+        editorValue: "",
+      },
+      AWS_REGION: {
+        label: "Region",
+        placeholder: "us-west-2",
+        defaultValue: "us-west-2",
+        editorValue: "us-west-2",
+      },
+    },
+  },
+  {
+    name: "AWS Bedrock (API Key)",
+    websiteUrl: "https://aws.amazon.com/bedrock",
+    settingsConfig: {
+      apiKey: "",
+      env: {
+        ANTHROPIC_BASE_URL:
+          "https://bedrock-runtime.${AWS_REGION}.amazonaws.com",
+        AWS_REGION: "us-west-2",
+        CLAUDE_CODE_USE_BEDROCK: "1",
+        ANTHROPIC_MODEL: "anthropic.claude-sonnet-4-6-20250514-v1:0",
+      },
+    },
+    category: "cloud_provider",
+    icon: "aws",
+    templateValues: {
+      AWS_REGION: {
+        label: "Region",
+        placeholder: "us-west-2",
+        defaultValue: "us-west-2",
+        editorValue: "us-west-2",
+      },
+    },
+  },
+  {
+    name: "TheRouter",
+    websiteUrl: "https://therouter.ai",
+    apiKeyUrl: "https://dashboard.therouter.ai",
+    settingsConfig: {
+      env: {
+        ANTHROPIC_BASE_URL: "https://api.therouter.ai",
+        ANTHROPIC_AUTH_TOKEN: "",
+        ANTHROPIC_API_KEY: "",
+        ANTHROPIC_MODEL: "anthropic/claude-sonnet-4.6",
+        ANTHROPIC_DEFAULT_HAIKU_MODEL: "anthropic/claude-haiku-4.5",
+        ANTHROPIC_DEFAULT_SONNET_MODEL: "anthropic/claude-sonnet-4.6",
+        ANTHROPIC_DEFAULT_OPUS_MODEL: "anthropic/claude-opus-4.7",
+      },
+    },
+    category: "aggregator",
+    endpointCandidates: ["https://api.therouter.ai"],
+  },
 ];
 

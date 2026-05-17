@@ -324,6 +324,13 @@ export const iconMetadata: Record<string, IconMetadata> = {
     keywords: ["hunyuan"],
     defaultColor: "#00A4FF",
   },
+  tuzi: {
+    name: "tuzi",
+    displayName: "Tuzi",
+    category: "ai-provider",
+    keywords: ["tuzi", "rabbit"],
+    defaultColor: "#FF6B9D",
+  },
   vercel: {
     name: "vercel",
     displayName: "vercel",

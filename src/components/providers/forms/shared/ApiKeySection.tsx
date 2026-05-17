@@ -31,8 +31,8 @@ export function ApiKeySection({
   const { t } = useTranslation();
 
   const defaultPlaceholder = {
-    official: t("providerForm.officialNoApiKey", {
-      defaultValue: "官方供应商无需 API Key",
+    official: t("providerForm.apiKeyAutoFill", {
+      defaultValue: "输入 API Key，将自动填充到配置",
     }),
     thirdParty: t("providerForm.apiKeyAutoFill", {
       defaultValue: "输入 API Key，将自动填充到配置",
@@ -53,7 +53,7 @@ export function ApiKeySection({
             ? finalPlaceholder.official
             : finalPlaceholder.thirdParty
         }
-        disabled={disabled ?? category === "official"}
+        disabled={disabled}
       />
       {/* API Key 获取链接 */}
       {shouldShowLink && websiteUrl && (

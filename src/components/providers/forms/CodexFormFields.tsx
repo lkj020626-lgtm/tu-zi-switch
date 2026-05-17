@@ -112,8 +112,8 @@ export function CodexFormFields({
         shouldShowLink={shouldShowApiKeyLink}
         websiteUrl={websiteUrl}
         placeholder={{
-          official: t("providerForm.codexOfficialNoApiKey", {
-            defaultValue: "官方供应商无需 API Key",
+          official: t("providerForm.codexApiKeyAutoFill", {
+            defaultValue: "输入 API Key，将自动填充到配置",
           }),
           thirdParty: t("providerForm.codexApiKeyAutoFill", {
             defaultValue: "输入 API Key，将自动填充到配置",

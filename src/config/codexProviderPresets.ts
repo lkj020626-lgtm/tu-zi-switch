@@ -82,4 +82,17 @@ export const codexProviderPresets: CodexProviderPreset[] = [
       textColor: "#FFFFFF",
     },
   },
+  {
+    name: "TheRouter",
+    websiteUrl: "https://therouter.ai",
+    apiKeyUrl: "https://dashboard.therouter.ai",
+    auth: { OPENAI_API_KEY: "" },
+    config: generateThirdPartyConfig(
+      "therouter",
+      "https://api.therouter.ai/v1",
+      "openai/gpt-5.3-codex",
+    ),
+    category: "aggregator",
+    endpointCandidates: ["https://api.therouter.ai/v1"],
+  },
 ];

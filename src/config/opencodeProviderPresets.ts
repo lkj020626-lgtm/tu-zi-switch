@@ -327,4 +327,86 @@ export const opencodeProviderPresets: OpenCodeProviderPreset[] = [
       },
     },
   },
+  {
+    name: "AWS Bedrock",
+    websiteUrl: "https://aws.amazon.com/bedrock",
+    settingsConfig: {
+      npm: "@ai-sdk/amazon-bedrock",
+      name: "bedrock",
+      options: {
+        region: "us-west-2",
+        accessKeyId: "",
+        secretAccessKey: "",
+      },
+      models: {
+        "global.anthropic.claude-opus-4-7": { name: "Claude Opus 4.7" },
+        "global.anthropic.claude-sonnet-4-6": { name: "Claude Sonnet 4.6" },
+      },
+    },
+    category: "cloud_provider",
+    icon: "aws",
+    templateValues: {
+      region: {
+        label: "Region",
+        placeholder: "us-west-2",
+        defaultValue: "us-west-2",
+        editorValue: "us-west-2",
+      },
+      accessKeyId: {
+        label: "Access Key ID",
+        placeholder: "AKIA...",
+        editorValue: "",
+      },
+      secretAccessKey: {
+        label: "Secret Access Key",
+        placeholder: "",
+        editorValue: "",
+      },
+    },
+  },
+  {
+    name: "Kimi For Coding",
+    websiteUrl: "https://kimi.moonshot.cn",
+    settingsConfig: {
+      npm: "@ai-sdk/anthropic",
+      name: "kimi-coding",
+      options: {
+        baseURL: "https://api.kimi.com/coding/v1",
+        apiKey: "",
+      },
+      models: {
+        "kimi-k2": { name: "Kimi K2" },
+      },
+    },
+    category: "aggregator",
+    icon: "kimi",
+    templateValues: {
+      baseURL: {
+        label: "Base URL",
+        placeholder: "https://api.kimi.com/coding/v1",
+        defaultValue: "https://api.kimi.com/coding/v1",
+        editorValue: "https://api.kimi.com/coding/v1",
+      },
+    },
+  },
+  {
+    name: "TheRouter",
+    websiteUrl: "https://therouter.ai",
+    apiKeyUrl: "https://dashboard.therouter.ai",
+    settingsConfig: {
+      npm: "@ai-sdk/openai-compatible",
+      name: "therouter",
+      options: {
+        baseURL: "https://api.therouter.ai/v1",
+        apiKey: "",
+        setCacheKey: true,
+      },
+      models: {
+        "openai/gpt-5.3-codex": { name: "GPT-5.3 Codex" },
+        "anthropic/claude-sonnet-4.6": { name: "Claude Sonnet 4.6" },
+        "google/gemini-3-flash-preview": { name: "Gemini 3 Flash" },
+      },
+    },
+    category: "aggregator",
+  },
 ];

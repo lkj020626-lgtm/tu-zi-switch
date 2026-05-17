@@ -2,7 +2,6 @@ import type { AppId } from "@/lib/api";
 import type { VisibleApps } from "@/types";
 import { ProviderIcon } from "@/components/ProviderIcon";
 import { cn } from "@/lib/utils";
-import { Rabbit } from "lucide-react";
 
 interface AppSwitcherProps {
   activeApp: AppId;
@@ -59,7 +58,6 @@ export function AppSwitcher({
   // Filter apps based on visibility settings (default all visible)
   const appsToShow = ALL_APPS.filter((app) => {
     if (!visibleApps) return true;
-    if (app === "tuzi") return true;
     return visibleApps[app];
   });
 
@@ -77,15 +75,11 @@ export function AppSwitcher({
               : "text-muted-foreground hover:text-foreground hover:bg-background/50",
           )}
         >
-          {app === "tuzi" ? (
-            <Rabbit className="h-5 w-5 text-pink-500" />
-          ) : (
-            <ProviderIcon
-              icon={appIconName[app]}
-              name={appDisplayName[app]}
-              size={iconSize}
-            />
-          )}
+          <ProviderIcon
+            icon={appIconName[app]}
+            name={appDisplayName[app]}
+            size={iconSize}
+          />
           <span
             className={cn(
               "transition-all duration-200 whitespace-nowrap overflow-hidden",
