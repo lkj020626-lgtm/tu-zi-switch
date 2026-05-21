@@ -23,19 +23,11 @@ jobs:
           - platform: macos-13
             args: "--target x86_64-apple-darwin"
             rust_targets: "x86_64-apple-darwin"
-          - platform: ubuntu-22.04
-            args: ""
 
     runs-on: ${{ matrix.platform }}
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install dependencies (Linux)
-        if: matrix.platform == 'ubuntu-22.04'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libssl-dev
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -95,8 +87,68 @@ jobs:
           releaseAssetNamePattern: "tuzi-switch-[platform]-[arch][setup][ext]"
           args: ${{ matrix.args }}
 
+  build-linux:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libssl-dev
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+
+      - name: Install frontend dependencies
+        run: pnpm install
+
+      - name: Build Tauri app
+        run: pnpm tauri build
+
+      - name: Rename and upload Linux assets
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          BUNDLE_DIR="src-tauri/target/release/bundle"
+
+          rename_and_upload() {
+            local src="$1"
+            local ext="${src##*.}"
+            local arch
+            case "$(uname -m)" in
+              x86_64) arch="x86_64" ;;
+              aarch64) arch="aarch64" ;;
+              *) arch="$(uname -m)" ;;
+            esac
+            local dest="tuzi-switch-linux-${arch}.${ext}"
+            cp "$src" "$dest"
+            gh release upload "$TAG" "$dest" --clobber
+          }
+
+          find "$BUNDLE_DIR/appimage" -name "*.AppImage" | while read f; do rename_and_upload "$f"; done
+          find "$BUNDLE_DIR/deb"      -name "*.deb"      | while read f; do rename_and_upload "$f"; done
+          find "$BUNDLE_DIR/rpm"      -name "*.rpm"      | while read f; do rename_and_upload "$f"; done
+
   upload-install-script:
-    needs: build
+    needs: [build, build-linux]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
