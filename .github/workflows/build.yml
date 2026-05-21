@@ -11,150 +11,169 @@ permissions:
   contents: write
 
 jobs:
-  build:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: windows-latest
-            args: ""
-          - platform: macos-latest
-            args: "--target aarch64-apple-darwin"
-            rust_targets: "aarch64-apple-darwin"
-          - platform: macos-13
-            args: "--target x86_64-apple-darwin"
-            rust_targets: "x86_64-apple-darwin"
-
-    runs-on: ${{ matrix.platform }}
-
+  create-release:
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9
-
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: ${{ matrix.rust_targets || '' }}
-
-      - name: Rust cache
-        uses: swatinem/rust-cache@v2
-        with:
-          workspaces: "./src-tauri -> target"
-
-      - name: Install frontend dependencies
-        run: pnpm install
-
-      - name: Build Tauri app
-        uses: tauri-apps/tauri-action@v0
+      - name: Create release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          APPLE_SIGNING_IDENTITY: "-"
-        with:
-          tagName: ${{ github.ref_name }}
-          releaseName: "tuzi switch ${{ github.ref_name }}"
-          releaseBody: |
-            ## 安装方式
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            --title "tuzi switch ${{ github.ref_name }}" \
+            --notes "## 安装方式
 
-            ### macOS / Linux 一键安装
+          ### macOS / Linux 一键安装
 
-            ```bash
-            curl -fsSL https://raw.githubusercontent.com/tuziapi/tuzi-switch/${{ github.ref_name }}/scripts/install_tuzi_switch.sh | bash
-            ```
+          \`\`\`bash
+          curl -fsSL https://raw.githubusercontent.com/tuziapi/tuzi-switch/${{ github.ref_name }}/scripts/install_tuzi_switch.sh | bash
+          \`\`\`
 
-            或指定版本：
+          或指定版本：
 
-            ```bash
-            TUZI_SWITCH_TAG=${{ github.ref_name }} curl -fsSL https://raw.githubusercontent.com/tuziapi/tuzi-switch/${{ github.ref_name }}/scripts/install_tuzi_switch.sh | bash
-            ```
+          \`\`\`bash
+          TUZI_SWITCH_TAG=${{ github.ref_name }} curl -fsSL https://raw.githubusercontent.com/tuziapi/tuzi-switch/${{ github.ref_name }}/scripts/install_tuzi_switch.sh | bash
+          \`\`\`
 
-            ### Windows
+          ### Windows
 
-            下载下方 Assets 中的 `.msi` 安装包，双击安装即可。
+          下载下方 Assets 中的 \`.msi\` 安装包，双击安装即可。" \
+            --draft
 
-            ---
-
-            See the assets below to download the installer for your platform.
-          releaseDraft: true
-          prerelease: false
-          releaseAssetNamePattern: "tuzi-switch-[platform]-[arch][setup][ext]"
-          args: ${{ matrix.args }}
-
-  build-linux:
-    runs-on: ubuntu-22.04
-
+  build-macos-arm:
+    needs: create-release
+    runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Install dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libssl-dev
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - uses: actions/setup-node@v4
         with:
           node-version: "20"
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v4
         with:
           version: 9
-
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Rust cache
-        uses: swatinem/rust-cache@v2
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+      - uses: swatinem/rust-cache@v2
         with:
           workspaces: "./src-tauri -> target"
-
-      - name: Install frontend dependencies
-        run: pnpm install
-
-      - name: Build Tauri app
-        run: pnpm tauri build
-
-      - name: Rename and upload Linux assets
+      - run: pnpm install
+      - name: Build
+        env:
+          APPLE_SIGNING_IDENTITY: "-"
+        run: pnpm tauri build --target aarch64-apple-darwin
+      - name: Upload assets
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG: ${{ github.ref_name }}
         run: |
-          BUNDLE_DIR="src-tauri/target/release/bundle"
+          BUNDLE="src-tauri/target/aarch64-apple-darwin/release/bundle"
+          find "$BUNDLE/dmg"   -name "*.dmg"   -exec sh -c 'cp "$1" "tuzi-switch-macos-aarch64.dmg"   && gh release upload "$TAG" "tuzi-switch-macos-aarch64.dmg"   --clobber' _ {} \;
+          find "$BUNDLE/macos" -name "*.tar.gz" -exec sh -c 'cp "$1" "tuzi-switch-macos-aarch64.tar.gz" && gh release upload "$TAG" "tuzi-switch-macos-aarch64.tar.gz" --clobber' _ {} \;
 
-          rename_and_upload() {
-            local src="$1"
-            local ext="${src##*.}"
-            local arch
-            case "$(uname -m)" in
-              x86_64) arch="x86_64" ;;
-              aarch64) arch="aarch64" ;;
-              *) arch="$(uname -m)" ;;
-            esac
-            local dest="tuzi-switch-linux-${arch}.${ext}"
-            cp "$src" "$dest"
-            gh release upload "$TAG" "$dest" --clobber
+  build-macos-intel:
+    needs: create-release
+    runs-on: macos-13
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-apple-darwin
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+      - run: pnpm install
+      - name: Build
+        env:
+          APPLE_SIGNING_IDENTITY: "-"
+        run: pnpm tauri build --target x86_64-apple-darwin
+      - name: Upload assets
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          BUNDLE="src-tauri/target/x86_64-apple-darwin/release/bundle"
+          find "$BUNDLE/dmg"   -name "*.dmg"   -exec sh -c 'cp "$1" "tuzi-switch-macos-x86_64.dmg"   && gh release upload "$TAG" "tuzi-switch-macos-x86_64.dmg"   --clobber' _ {} \;
+          find "$BUNDLE/macos" -name "*.tar.gz" -exec sh -c 'cp "$1" "tuzi-switch-macos-x86_64.tar.gz" && gh release upload "$TAG" "tuzi-switch-macos-x86_64.tar.gz" --clobber' _ {} \;
+
+  build-windows:
+    needs: create-release
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+      - run: pnpm install
+      - name: Build
+        run: pnpm tauri build
+      - name: Upload assets
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        shell: pwsh
+        run: |
+          $bundle = "src-tauri/target/release/bundle"
+          Get-ChildItem "$bundle/msi/*.msi" | ForEach-Object {
+            Copy-Item $_.FullName "tuzi-switch-windows-x86_64.msi"
+            gh release upload $env:TAG "tuzi-switch-windows-x86_64.msi" --clobber
+          }
+          Get-ChildItem "$bundle/nsis/*-setup.exe" | ForEach-Object {
+            Copy-Item $_.FullName "tuzi-switch-windows-x86_64-setup.exe"
+            gh release upload $env:TAG "tuzi-switch-windows-x86_64-setup.exe" --clobber
           }
 
-          find "$BUNDLE_DIR/appimage" -name "*.AppImage" | while read f; do rename_and_upload "$f"; done
-          find "$BUNDLE_DIR/deb"      -name "*.deb"      | while read f; do rename_and_upload "$f"; done
-          find "$BUNDLE_DIR/rpm"      -name "*.rpm"      | while read f; do rename_and_upload "$f"; done
+  build-linux:
+    needs: create-release
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf libssl-dev
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: "./src-tauri -> target"
+      - run: pnpm install
+      - name: Build
+        run: pnpm tauri build
+      - name: Upload assets
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          BUNDLE="src-tauri/target/release/bundle"
+          find "$BUNDLE/appimage" -name "*.AppImage" -exec sh -c 'cp "$1" "tuzi-switch-linux-x86_64.AppImage" && gh release upload "$TAG" "tuzi-switch-linux-x86_64.AppImage" --clobber' _ {} \;
+          find "$BUNDLE/deb"      -name "*.deb"      -exec sh -c 'cp "$1" "tuzi-switch-linux-x86_64.deb"      && gh release upload "$TAG" "tuzi-switch-linux-x86_64.deb"      --clobber' _ {} \;
+          find "$BUNDLE/rpm"      -name "*.rpm"      -exec sh -c 'cp "$1" "tuzi-switch-linux-x86_64.rpm"      && gh release upload "$TAG" "tuzi-switch-linux-x86_64.rpm"      --clobber' _ {} \;
 
   upload-install-script:
-    needs: [build, build-linux]
+    needs: [build-macos-arm, build-macos-intel, build-windows, build-linux]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Upload install script to release
+      - name: Upload install script
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
