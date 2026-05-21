@@ -35,7 +35,11 @@ fn build_codex_official_provider(
         }),
         Some(website_url.to_string()),
     );
-    provider.icon = Some("tuzi".to_string());
+    provider.icon = Some(match id {
+        "coding" => "codex-sub",
+        "gaccode" => "gaccode",
+        _ => "tuzi",
+    }.to_string());
     provider.icon_color = None;
     provider
 }
@@ -57,7 +61,10 @@ fn build_claude_official_provider(id: &str, name: &str, base_url: &str, model: &
         }),
         None,
     );
-    provider.icon = Some("tuzi".to_string());
+    provider.icon = Some(match id {
+        "gaccode" => "gaccode",
+        _ => "tuzi",
+    }.to_string());
     provider.icon_color = None;
     provider
 }

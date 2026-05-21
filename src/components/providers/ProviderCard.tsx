@@ -251,6 +251,26 @@ export function ProviderCard({
       !isProxyTakeover &&
       (isActiveProvider || hasPersistentConfigHighlight));
 
+  // 预设卡片未填 API key 时呈灰调（启用中的卡片不受影响）
+  const PRESET_IDS: Partial<Record<string, string[]>> = {
+    codex:  ["tuzi-route", "coding", "gaccode"],
+    claude: ["tuzi-route", "gaccode"],
+    gemini: ["tuzi-route"],
+  };
+  const isPresetCard = PRESET_IDS[appId]?.includes(provider.id) ?? false;
+  const presetApiKey = isPresetCard
+    ? (() => {
+        const cfg = provider.settingsConfig as Record<string, any>;
+        return appId === "codex"  ? cfg?.auth?.OPENAI_API_KEY :
+               appId === "claude" ? (cfg?.env?.ANTHROPIC_AUTH_TOKEN || cfg?.env?.ANTHROPIC_API_KEY) :
+               appId === "gemini" ? cfg?.env?.GEMINI_API_KEY : "";
+      })()
+    : null;
+  const isPresetMissingKey =
+    isPresetCard &&
+    !isActiveProvider &&
+    (typeof presetApiKey !== "string" || presetApiKey.trim() === "");
+
   return (
     <div
       className={cn(
@@ -266,6 +286,7 @@ export function ProviderCard({
           "hover:shadow-sm",
         dragHandleProps?.isDragging &&
           "cursor-grabbing border-primary shadow-lg scale-105 z-10",
+        isPresetMissingKey && "opacity-50 grayscale",
       )}
     >
       <div
@@ -359,22 +380,74 @@ export function ProviderCard({
               )}
             </div>
 
-            {displayUrl && (
-              <button
-                type="button"
-                onClick={handleOpenWebsite}
-                className={cn(
-                  "inline-flex items-center text-sm max-w-[280px]",
-                  isClickableUrl
-                    ? "text-blue-500 transition-colors hover:underline dark:text-blue-400 cursor-pointer"
-                    : "text-muted-foreground cursor-default",
-                )}
-                title={displayUrl}
-                disabled={!isClickableUrl}
-              >
-                <span className="truncate">{displayUrl}</span>
-              </button>
-            )}
+            {(() => {
+              const codexLinks: Record<string, { recharge: string; query: string }> = {
+                "tuzi-route": { recharge: "https://api.tu-zi.com/console/topup", query: "https://api.tu-zi.com/console/log" },
+                "coding":     { recharge: "https://store.tu-zi.com/cat/11",      query: "https://api.tu-zi.com/reseller/" },
+                "gaccode":    { recharge: "https://store.tu-zi.com/cat/1",        query: "https://gaccode.com/credits" },
+              };
+              const claudeLinks: Record<string, { recharge: string; query: string }> = {
+                "tuzi-route": { recharge: "https://api.tu-zi.com/console/topup", query: "https://api.tu-zi.com/console/log" },
+                "gaccode":    { recharge: "https://store.tu-zi.com/cat/1",        query: "https://gaccode.com/credits" },
+              };
+              const geminiLinks: Record<string, { recharge: string; query: string }> = {
+                "tuzi-route": { recharge: "https://api.tu-zi.com/console/topup", query: "https://api.tu-zi.com/console/log" },
+              };
+              const linkMap: Partial<Record<string, Record<string, { recharge: string; query: string }>>> = {
+                codex: codexLinks,
+                claude: claudeLinks,
+                gemini: geminiLinks,
+              };
+              const links = linkMap[appId]?.[provider.id];
+              if (links) {
+                const cfg = provider.settingsConfig as Record<string, any>;
+                const rawKey =
+                  appId === "codex"  ? cfg?.auth?.OPENAI_API_KEY :
+                  appId === "claude" ? (cfg?.env?.ANTHROPIC_AUTH_TOKEN || cfg?.env?.ANTHROPIC_API_KEY) :
+                  appId === "gemini" ? cfg?.env?.GEMINI_API_KEY : "";
+                const maskedKey =
+                  typeof rawKey === "string" && rawKey.trim().length > 12
+                    ? `${rawKey.slice(0, 8)}${"*".repeat(8)}${rawKey.slice(-4)}`
+                    : null;
+                return (
+                  <div className="flex items-center gap-3 text-sm">
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); onOpenWebsite(links.recharge); }}
+                      className="text-blue-500 hover:underline dark:text-blue-400 cursor-pointer"
+                    >
+                      充值
+                    </button>
+                    <button
+                      type="button"
+                      onClick={(e) => { e.stopPropagation(); onOpenWebsite(links.query); }}
+                      className="text-blue-500 hover:underline dark:text-blue-400 cursor-pointer"
+                    >
+                      查询
+                    </button>
+                    {maskedKey && (
+                      <span className="text-muted-foreground font-mono text-xs">{maskedKey}</span>
+                    )}
+                  </div>
+                );
+              }
+              return displayUrl ? (
+                <button
+                  type="button"
+                  onClick={handleOpenWebsite}
+                  className={cn(
+                    "inline-flex items-center text-sm max-w-[280px]",
+                    isClickableUrl
+                      ? "text-blue-500 transition-colors hover:underline dark:text-blue-400 cursor-pointer"
+                      : "text-muted-foreground cursor-default",
+                  )}
+                  title={displayUrl}
+                  disabled={!isClickableUrl}
+                >
+                  <span className="truncate">{displayUrl}</span>
+                </button>
+              ) : null;
+            })()}
           </div>
         </div>
 

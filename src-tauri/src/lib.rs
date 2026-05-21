@@ -423,6 +423,11 @@ pub fn run() {
 
             let app_state = AppState::new(db);
 
+            // 每次启动都 upsert 预设卡片，确保名称/图标等字段与种子数据保持同步
+            if let Err(e) = app_state.db.init_default_official_providers() {
+                log::warn!("✗ Failed to refresh default official providers on startup: {e}");
+            }
+
             // 设置 AppHandle 用于代理故障转移时的 UI 更新
             app_state.proxy_service.set_app_handle(app.handle().clone());
 
@@ -1103,6 +1108,9 @@ pub fn run() {
             // subscription quota
             commands::get_subscription_quota,
             commands::get_codex_oauth_quota,
+            commands::sync_codex_live_api_key,
+            commands::sync_claude_live_api_key,
+            commands::sync_gemini_live_api_key,
             commands::get_coding_plan_quota,
             commands::get_balance,
             // New MCP via config.json (SSOT)

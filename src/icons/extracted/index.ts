@@ -7,6 +7,8 @@ import _hermes from "./hermes.png";
 import _lemondata from "./lemondata.png";
 import _pipellm from "./pipellm.png";
 import _tuzi from "./tuzi.png";
+import _codexSub from "./codex-sub.png";
+import _gaccode from "./gaccode.png";
 import _shengsuanyun from "./shengsuanyun.svg?url";
 
 export const icons: Record<string, string> = {
@@ -89,6 +91,8 @@ export const iconUrls: Record<string, string> = {
   pipellm: _pipellm,
   tuzi: _tuzi,
   shengsuanyun: _shengsuanyun,
+  "codex-sub": _codexSub,
+  gaccode: _gaccode,
 };
 
 export const iconList = [

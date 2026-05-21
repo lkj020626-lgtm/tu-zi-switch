@@ -77,9 +77,8 @@ export const codexProviderPresets: CodexProviderPreset[] = [
     theme: { icon: "tuzi" },
   },
   {
-    name: "coding",
+    name: "codex订阅",
     websiteUrl: "",
-    apiKeyUrl: "https://store.tu-zi.com/cat/11",
     auth: { OPENAI_API_KEY: "" },
     config: generateThirdPartyConfig(
       "coding",
@@ -88,8 +87,8 @@ export const codexProviderPresets: CodexProviderPreset[] = [
     ),
     category: "aggregator",
     endpointCandidates: ["https://api.tu-zi.com/coding"],
-    icon: "tuzi",
-    theme: { icon: "tuzi" },
+    icon: "codex-sub",
+    theme: { icon: "codex-sub" },
   },
   {
     name: "gaccode",
@@ -103,7 +102,7 @@ export const codexProviderPresets: CodexProviderPreset[] = [
     ),
     category: "aggregator",
     endpointCandidates: ["https://gaccode.com/codex/v1"],
-    icon: "tuzi",
-    theme: { icon: "tuzi" },
+    icon: "gaccode",
+    theme: { icon: "gaccode" },
   },
 ];

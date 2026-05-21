@@ -679,6 +679,372 @@ pub fn get_opencode_live_provider_ids() -> Result<Vec<String>, String> {
         .map_err(|e| e.to_string())
 }
 
+/// 从 TOML 字符串中提取 base_url：
+/// 优先从 [model_providers.<name>] 段读取，fallback 到顶层 base_url。
+fn extract_base_url_from_toml_str(toml_str: &str) -> Option<String> {
+    let doc: toml::Value = toml_str.parse().ok()?;
+    if let Some(providers) = doc.get("model_providers").and_then(|v| v.as_table()) {
+        for (_, provider) in providers.iter() {
+            if let Some(url) = provider.get("base_url").and_then(|v| v.as_str()) {
+                return Some(url.to_string());
+            }
+        }
+    }
+    doc.get("base_url")
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
+}
+
+/// 检测 ~/.codex/auth.json 和 config.toml，把 API key 回填到数据库里对应的预设卡片。
+/// - base_url 匹配预设 → 更新对应卡片的 OPENAI_API_KEY
+/// - base_url 不匹配 → 生成一张新的 default 卡片（多个则 default1、default2...）
+#[tauri::command]
+pub fn sync_codex_live_api_key(state: State<'_, AppState>) -> Result<(), String> {
+    use crate::codex_config::{get_codex_auth_path, read_codex_config_text};
+    use crate::services::provider::ProviderService;
+    use serde_json::json;
+
+    // 预设卡片：(id, base_url)
+    const PRESET_CARDS: &[(&str, &str)] = &[
+        ("tuzi-route", "https://api.tu-zi.com"),
+        ("coding", "https://api.tu-zi.com/coding"),
+        ("gaccode", "https://gaccode.com/codex/v1"),
+    ];
+
+    // 1. 读取 auth.json
+    let auth_path = get_codex_auth_path();
+    if !auth_path.exists() {
+        return Ok(());
+    }
+    let auth_text = std::fs::read_to_string(&auth_path).map_err(|e| e.to_string())?;
+    let auth: serde_json::Value =
+        serde_json::from_str(&auth_text).unwrap_or_else(|_| json!({}));
+    let api_key = auth
+        .get("OPENAI_API_KEY")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+
+    if api_key.is_empty() {
+        return Ok(());
+    }
+
+    // 2. 读取 config.toml，提取 base_url
+    let config_text = read_codex_config_text().unwrap_or_default();
+    let detected_url = extract_base_url_from_toml_str(&config_text).unwrap_or_default();
+    let normalized_detected = detected_url.trim_end_matches('/').to_lowercase();
+
+    // 3. 尝试匹配预设卡片
+    let matched_id = PRESET_CARDS
+        .iter()
+        .find_map(|(id, base_url)| {
+            let normalized = base_url.trim_end_matches('/').to_lowercase();
+            if normalized == normalized_detected {
+                Some(*id)
+            } else {
+                None
+            }
+        });
+
+    if let Some(provider_id) = matched_id {
+        // 4a. 匹配到预设 → 读取现有 settings_config，更新 API key
+        let existing = state
+            .db
+            .get_provider_by_id(provider_id, "codex")
+            .map_err(|e| e.to_string())?;
+        if let Some(mut provider) = existing {
+            if let Some(auth_obj) = provider
+                .settings_config
+                .get_mut("auth")
+                .and_then(|v| v.as_object_mut())
+            {
+                auth_obj.insert("OPENAI_API_KEY".to_string(), json!(api_key));
+            }
+            state
+                .db
+                .update_provider_settings_config("codex", provider_id, &provider.settings_config)
+                .map_err(|e| e.to_string())?;
+        }
+    } else if !normalized_detected.is_empty() {
+        // 4b. 未匹配 → 生成 default 卡片
+        let existing_providers = state
+            .db
+            .get_all_providers("codex")
+            .map_err(|e| e.to_string())?;
+
+        // 检查是否已有相同 base_url 的卡片，避免重复创建
+        let already_exists = existing_providers.values().any(|p| {
+            let config_str = p
+                .settings_config
+                .get("config")
+                .and_then(|v| v.as_str())
+                .unwrap_or("");
+            let url = extract_base_url_from_toml_str(config_str).unwrap_or_default();
+            url.trim_end_matches('/').to_lowercase() == normalized_detected
+        });
+
+        if already_exists {
+            return Ok(());
+        }
+
+        let default_count = existing_providers
+            .keys()
+            .filter(|id| id.starts_with("default"))
+            .count();
+        let card_id = if default_count == 0 {
+            "default".to_string()
+        } else {
+            format!("default{}", default_count)
+        };
+        let card_name = card_id.clone();
+
+        let config_toml = format!(
+            "model_provider = \"{card_id}\"\nmodel = \"gpt-5.5\"\nmodel_reasoning_effort = \"high\"\ndisable_response_storage = true\n\n[model_providers.{card_id}]\nname = \"{card_id}\"\nbase_url = \"{detected_url}\"\nwire_api = \"responses\"\nrequires_openai_auth = true\n"
+        );
+
+        let mut new_provider = crate::provider::Provider::with_id(
+            card_id.clone(),
+            card_name,
+            json!({
+                "auth": { "OPENAI_API_KEY": api_key },
+                "config": config_toml,
+            }),
+            None,
+        );
+
+        ProviderService::add(state.inner(), AppType::Codex, new_provider, false)
+            .map_err(|e| e.to_string())?;
+    }
+
+    Ok(())
+}
+
+/// 检测 ~/.claude/settings.json，把 API key 回填到数据库里对应的预设卡片。
+/// - ANTHROPIC_BASE_URL 匹配预设 → 更新对应卡片的 ANTHROPIC_API_KEY
+/// - 不匹配 → 生成 default 卡片
+#[tauri::command]
+pub fn sync_claude_live_api_key(state: State<'_, AppState>) -> Result<(), String> {
+    use crate::app_config::AppType;
+    use crate::config::{get_claude_settings_path, read_json_file};
+    use crate::services::provider::ProviderService;
+    use serde_json::json;
+
+    const PRESET_CARDS: &[(&str, &str)] = &[
+        ("tuzi-route", "https://api.tu-zi.com"),
+        ("gaccode", "https://gaccode.com/claudecode"),
+    ];
+
+    let settings_path = get_claude_settings_path();
+    if !settings_path.exists() {
+        return Ok(());
+    }
+    let live: serde_json::Value = read_json_file(&settings_path).unwrap_or_else(|_| json!({}));
+
+    let env = match live.get("env").and_then(|v| v.as_object()) {
+        Some(e) => e.clone(),
+        None => return Ok(()),
+    };
+
+    let api_key = env
+        .get("ANTHROPIC_API_KEY")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    if api_key.is_empty() || api_key == "PROXY_MANAGED" {
+        return Ok(());
+    }
+
+    let detected_url = env
+        .get("ANTHROPIC_BASE_URL")
+        .and_then(|v| v.as_str())
+        .unwrap_or("")
+        .to_string();
+    let normalized_detected = detected_url.trim_end_matches('/').to_lowercase();
+
+    let matched_id = PRESET_CARDS.iter().find_map(|(id, base_url)| {
+        if base_url.trim_end_matches('/').to_lowercase() == normalized_detected {
+            Some(*id)
+        } else {
+            None
+        }
+    });
+
+    if let Some(provider_id) = matched_id {
+        let existing = state
+            .db
+            .get_provider_by_id(provider_id, "claude")
+            .map_err(|e| e.to_string())?;
+        if let Some(mut provider) = existing {
+            if let Some(env_obj) = provider
+                .settings_config
+                .get_mut("env")
+                .and_then(|v| v.as_object_mut())
+            {
+                env_obj.insert("ANTHROPIC_API_KEY".to_string(), json!(api_key));
+            }
+            state
+                .db
+                .update_provider_settings_config("claude", provider_id, &provider.settings_config)
+                .map_err(|e| e.to_string())?;
+        }
+    } else if !normalized_detected.is_empty() {
+        let existing_providers = state
+            .db
+            .get_all_providers("claude")
+            .map_err(|e| e.to_string())?;
+
+        let already_exists = existing_providers.values().any(|p| {
+            p.settings_config
+                .get("env")
+                .and_then(|e| e.get("ANTHROPIC_BASE_URL"))
+                .and_then(|v| v.as_str())
+                .map(|u| u.trim_end_matches('/').to_lowercase() == normalized_detected)
+                .unwrap_or(false)
+        });
+        if already_exists {
+            return Ok(());
+        }
+
+        let default_count = existing_providers
+            .keys()
+            .filter(|id| id.starts_with("default"))
+            .count();
+        let card_id = if default_count == 0 {
+            "default".to_string()
+        } else {
+            format!("default{}", default_count)
+        };
+
+        let mut new_provider = crate::provider::Provider::with_id(
+            card_id.clone(),
+            card_id.clone(),
+            json!({
+                "env": {
+                    "ANTHROPIC_BASE_URL": detected_url,
+                    "ANTHROPIC_AUTH_TOKEN": "",
+                    "ANTHROPIC_API_KEY": api_key,
+                    "ANTHROPIC_MODEL": "anthropic/claude-sonnet-4.6",
+                    "ANTHROPIC_DEFAULT_HAIKU_MODEL": "anthropic/claude-haiku-4.5",
+                    "ANTHROPIC_DEFAULT_SONNET_MODEL": "anthropic/claude-sonnet-4.6",
+                    "ANTHROPIC_DEFAULT_OPUS_MODEL": "anthropic/claude-opus-4.7",
+                }
+            }),
+            None,
+        );
+
+        ProviderService::add(state.inner(), AppType::Claude, new_provider, false)
+            .map_err(|e| e.to_string())?;
+    }
+
+    Ok(())
+}
+
+/// 检测 ~/.gemini/.env，把 API key 回填到数据库里对应的预设卡片。
+/// - GOOGLE_GEMINI_BASE_URL 匹配预设 → 更新对应卡片的 GEMINI_API_KEY
+/// - 不匹配 → 生成 default 卡片
+#[tauri::command]
+pub fn sync_gemini_live_api_key(state: State<'_, AppState>) -> Result<(), String> {
+    use crate::app_config::AppType;
+    use crate::gemini_config::{get_gemini_env_path, read_gemini_env};
+    use crate::services::provider::ProviderService;
+    use serde_json::json;
+
+    const PRESET_CARDS: &[(&str, &str)] = &[("tuzi-route", "https://api.tu-zi.com")];
+
+    let env_path = get_gemini_env_path();
+    if !env_path.exists() {
+        return Ok(());
+    }
+    let env_map = read_gemini_env().unwrap_or_default();
+
+    let api_key = env_map
+        .get("GEMINI_API_KEY")
+        .cloned()
+        .unwrap_or_default();
+    if api_key.is_empty() {
+        return Ok(());
+    }
+
+    let detected_url = env_map
+        .get("GOOGLE_GEMINI_BASE_URL")
+        .cloned()
+        .unwrap_or_default();
+    let normalized_detected = detected_url.trim_end_matches('/').to_lowercase();
+
+    let matched_id = PRESET_CARDS.iter().find_map(|(id, base_url)| {
+        if base_url.trim_end_matches('/').to_lowercase() == normalized_detected {
+            Some(*id)
+        } else {
+            None
+        }
+    });
+
+    if let Some(provider_id) = matched_id {
+        let existing = state
+            .db
+            .get_provider_by_id(provider_id, "gemini")
+            .map_err(|e| e.to_string())?;
+        if let Some(mut provider) = existing {
+            if let Some(env_obj) = provider
+                .settings_config
+                .get_mut("env")
+                .and_then(|v| v.as_object_mut())
+            {
+                env_obj.insert("GEMINI_API_KEY".to_string(), json!(api_key));
+            }
+            state
+                .db
+                .update_provider_settings_config("gemini", provider_id, &provider.settings_config)
+                .map_err(|e| e.to_string())?;
+        }
+    } else if !normalized_detected.is_empty() {
+        let existing_providers = state
+            .db
+            .get_all_providers("gemini")
+            .map_err(|e| e.to_string())?;
+
+        let already_exists = existing_providers.values().any(|p| {
+            p.settings_config
+                .get("env")
+                .and_then(|e| e.get("GOOGLE_GEMINI_BASE_URL"))
+                .and_then(|v| v.as_str())
+                .map(|u| u.trim_end_matches('/').to_lowercase() == normalized_detected)
+                .unwrap_or(false)
+        });
+        if already_exists {
+            return Ok(());
+        }
+
+        let default_count = existing_providers
+            .keys()
+            .filter(|id| id.starts_with("default"))
+            .count();
+        let card_id = if default_count == 0 {
+            "default".to_string()
+        } else {
+            format!("default{}", default_count)
+        };
+
+        let mut new_provider = crate::provider::Provider::with_id(
+            card_id.clone(),
+            card_id.clone(),
+            json!({
+                "env": {
+                    "GOOGLE_GEMINI_BASE_URL": detected_url,
+                    "GEMINI_API_KEY": api_key,
+                    "GEMINI_MODEL": "gemini-3.1-pro",
+                }
+            }),
+            None,
+        );
+
+        ProviderService::add(state.inner(), AppType::Gemini, new_provider, false)
+            .map_err(|e| e.to_string())?;
+    }
+
+    Ok(())
+}
+
 // ============================================================================
 // OpenClaw 专属命令 → 已迁移至 commands/openclaw.rs
 // ============================================================================

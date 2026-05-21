@@ -379,14 +379,48 @@ export function ProviderList({
 
   const filteredProviders = useMemo(() => {
     const keyword = searchTerm.trim().toLowerCase();
-    if (!keyword) return sortedProviders;
-    return sortedProviders.filter((provider) => {
-      const fields = [provider.name, provider.notes, provider.websiteUrl];
-      return fields.some((field) =>
-        field?.toString().toLowerCase().includes(keyword),
-      );
+    const base = keyword
+      ? sortedProviders.filter((provider) => {
+          const fields = [provider.name, provider.notes, provider.websiteUrl];
+          return fields.some((field) =>
+            field?.toString().toLowerCase().includes(keyword),
+          );
+        })
+      : sortedProviders;
+
+    // 对 codex/claude/gemini 的预设卡片做二次排序：
+    // 启用中(0) > 有 API key(1) > 无 API key(2)，其余卡片保持原顺序
+    const PRESET_IDS: Partial<Record<string, string[]>> = {
+      codex:  ["tuzi-route", "coding", "gaccode"],
+      claude: ["tuzi-route", "gaccode"],
+      gemini: ["tuzi-route"],
+    };
+    const presetIds = PRESET_IDS[appId];
+    if (!presetIds) return base;
+
+    const getPresetApiKey = (provider: Provider) => {
+      const cfg = provider.settingsConfig as Record<string, any>;
+      return appId === "codex"  ? cfg?.auth?.OPENAI_API_KEY :
+             appId === "claude" ? (cfg?.env?.ANTHROPIC_AUTH_TOKEN || cfg?.env?.ANTHROPIC_API_KEY) :
+             appId === "gemini" ? cfg?.env?.GEMINI_API_KEY : "";
+    };
+
+    const presetRank = (provider: Provider): number => {
+      if (!presetIds.includes(provider.id)) return -1; // 非预设，不参与
+      if (provider.id === currentProviderId) return 0;
+      const key = getPresetApiKey(provider);
+      return typeof key === "string" && key.trim() !== "" ? 1 : 2;
+    };
+
+    return [...base].sort((a, b) => {
+      const ra = presetRank(a);
+      const rb = presetRank(b);
+      // 两者都是预设卡片 → 按 rank 排
+      if (ra >= 0 && rb >= 0) return ra - rb;
+      // 只有一个是预设卡片 → 预设卡片保持原相对位置（不强制移动）
+      return 0;
     });
-  }, [searchTerm, sortedProviders]);
+  }, [searchTerm, sortedProviders, appId, currentProviderId]);
 
   const claudeDesktopStatusMessages = useMemo(() => {
     if (appId !== "claude-desktop" || !claudeDesktopStatus) return [];
