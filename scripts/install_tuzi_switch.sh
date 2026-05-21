@@ -43,7 +43,7 @@ fi
 echo "Downloading $FILE ..."
 curl -fL "$DOWNLOAD_URL" -o "$TMP_DIR/$FILE"
 
-case "${FILE,,}" in
+case "$(echo "$FILE" | tr '[:upper:]' '[:lower:]')" in
   *.dmg)
     MOUNT_DIR="$(mktemp -d)"
     hdiutil attach "$TMP_DIR/$FILE" -mountpoint "$MOUNT_DIR" -nobrowse -quiet
