@@ -27,12 +27,20 @@
 
 ### macOS / Linux 一键安装
 
-直接安装当前推荐版本 `v1.0.0`：
-
+直接安装当前推荐版本：
 ```bash
-curl -fsSL https://raw.githubusercontent.com/tuziapi/tuzi-switch/main/scripts/install_tuzi_switch.sh | env TUZI_SWITCH_TAG=v1.0.0 bash
+curl -fsSL https://raw.githubusercontent.com/tuziapi/tuzi-switch/v1.0.0/scripts/install_tuzi_switch.sh | bash
 ```
-
+```
+open "/Applications/tuzi switch.app"
+```
+安装指定版本：
+```
+TUZI_SWITCH_TAG=v1.0.0 curl -fsSL https://raw.githubusercontent.com/tuziapi/tuzi-switch/v1.0.0/scripts/install_tuzi_switch.sh | bash
+```
+```
+open "/Applications/tuzi switch.app"
+```
 补充说明：
 
 - 当前 Release 已按正式版本发布，GitHub `releases/latest` 会优先命中当前推荐版本
