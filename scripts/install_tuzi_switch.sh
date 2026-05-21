@@ -2,7 +2,7 @@
 set -euo pipefail
 
 REPO="${TUZI_SWITCH_REPO:-tuziapi/tuzi-switch}"
-TAG="${TUZI_SWITCH_TAG:-v1.0.0}"
+TAG="${TUZI_SWITCH_TAG:-latest}"
 TMP_DIR="$(mktemp -d)"
 
 cleanup() {

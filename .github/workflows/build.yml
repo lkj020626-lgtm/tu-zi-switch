@@ -20,6 +20,9 @@ jobs:
           - platform: macos-latest
             args: "--target aarch64-apple-darwin"
             rust_targets: "aarch64-apple-darwin"
+          - platform: macos-13
+            args: "--target x86_64-apple-darwin"
+            rust_targets: "x86_64-apple-darwin"
           - platform: ubuntu-22.04
             args: ""
 
@@ -67,8 +70,43 @@ jobs:
         with:
           tagName: ${{ github.ref_name }}
           releaseName: "tuzi switch ${{ github.ref_name }}"
-          releaseBody: "See the assets below to download the installer for your platform."
+          releaseBody: |
+            ## 安装方式
+
+            ### macOS / Linux 一键安装
+
+            ```bash
+            curl -fsSL https://raw.githubusercontent.com/tuziapi/tuzi-switch/${{ github.ref_name }}/scripts/install_tuzi_switch.sh | bash
+            ```
+
+            或指定版本：
+
+            ```bash
+            TUZI_SWITCH_TAG=${{ github.ref_name }} curl -fsSL https://raw.githubusercontent.com/tuziapi/tuzi-switch/${{ github.ref_name }}/scripts/install_tuzi_switch.sh | bash
+            ```
+
+            ### Windows
+
+            下载下方 Assets 中的 `.msi` 安装包，双击安装即可。
+
+            ---
+
+            See the assets below to download the installer for your platform.
           releaseDraft: true
           prerelease: false
           releaseAssetNamePattern: "tuzi-switch-[platform]-[arch][setup][ext]"
           args: ${{ matrix.args }}
+
+  upload-install-script:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Upload install script to release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release upload "${{ github.ref_name }}" \
+            scripts/install_tuzi_switch.sh \
+            --clobber
