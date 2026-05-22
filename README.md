@@ -29,14 +29,14 @@
 
 直接安装当前推荐版本：
 ```bash
-curl -fsSL https://raw.githubusercontent.com/tuziapi/tuzi-switch/v1.0.0/scripts/install_tuzi_switch.sh | bash
+curl -fsSL https://raw.githubusercontent.com/tuziapi/tuzi-switch/v1.0.1/scripts/install_tuzi_switch.sh | bash
 ```
 ```
 open "/Applications/tuzi switch.app"
 ```
 安装指定版本：
 ```
-TUZI_SWITCH_TAG=v1.0.0 curl -fsSL https://raw.githubusercontent.com/tuziapi/tuzi-switch/v1.0.0/scripts/install_tuzi_switch.sh | bash
+TUZI_SWITCH_TAG=v1.0.1 curl -fsSL https://raw.githubusercontent.com/tuziapi/tuzi-switch/v1.0.0/scripts/install_tuzi_switch.sh | bash
 ```
 ```
 open "/Applications/tuzi switch.app"
