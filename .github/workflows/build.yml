@@ -71,37 +71,6 @@ jobs:
           find "$BUNDLE/dmg"   -name "*.dmg"   -exec sh -c 'cp "$1" "tuzi-switch-macos-aarch64.dmg"   && gh release upload "$TAG" "tuzi-switch-macos-aarch64.dmg"   --clobber' _ {} \;
           find "$BUNDLE/macos" -name "*.tar.gz" -exec sh -c 'cp "$1" "tuzi-switch-macos-aarch64.tar.gz" && gh release upload "$TAG" "tuzi-switch-macos-aarch64.tar.gz" --clobber' _ {} \;
 
-  build-macos-intel:
-    needs: create-release
-    runs-on: macos-13
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "20"
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: x86_64-apple-darwin
-      - uses: swatinem/rust-cache@v2
-        with:
-          workspaces: "./src-tauri -> target"
-      - run: pnpm install
-      - name: Build
-        env:
-          APPLE_SIGNING_IDENTITY: "-"
-        run: pnpm tauri build --target x86_64-apple-darwin
-      - name: Upload assets
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ github.ref_name }}
-        run: |
-          BUNDLE="src-tauri/target/x86_64-apple-darwin/release/bundle"
-          find "$BUNDLE/dmg"   -name "*.dmg"   -exec sh -c 'cp "$1" "tuzi-switch-macos-x86_64.dmg"   && gh release upload "$TAG" "tuzi-switch-macos-x86_64.dmg"   --clobber' _ {} \;
-          find "$BUNDLE/macos" -name "*.tar.gz" -exec sh -c 'cp "$1" "tuzi-switch-macos-x86_64.tar.gz" && gh release upload "$TAG" "tuzi-switch-macos-x86_64.tar.gz" --clobber' _ {} \;
-
   build-windows:
     needs: create-release
     runs-on: windows-latest
@@ -169,7 +138,7 @@ jobs:
           find "$BUNDLE/rpm"      -name "*.rpm"      -exec sh -c 'cp "$1" "tuzi-switch-linux-x86_64.rpm"      && gh release upload "$TAG" "tuzi-switch-linux-x86_64.rpm"      --clobber' _ {} \;
 
   upload-install-script:
-    needs: [build-macos-arm, build-macos-intel, build-windows, build-linux]
+    needs: [build-macos-arm, build-windows, build-linux]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
