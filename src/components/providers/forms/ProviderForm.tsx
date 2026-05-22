@@ -341,12 +341,15 @@ function ProviderFormFull({
     onSubmittingChange?.(isSubmitting || isConfirmSubmitting);
   }, [isSubmitting, isConfirmSubmitting, onSubmittingChange]);
 
+  // 订阅 settingsConfig 变化，确保 shouldShowApiKey / hasApiKeyField 等依赖它的计算能响应式更新
+  const watchedSettingsConfig = form.watch("settingsConfig");
+
   const {
     apiKey,
     handleApiKeyChange,
     showApiKey: shouldShowApiKey,
   } = useApiKeyState({
-    initialConfig: form.getValues("settingsConfig"),
+    initialConfig: watchedSettingsConfig,
     onConfigChange: handleSettingsConfigChange,
     selectedPresetId,
     category,
@@ -357,7 +360,7 @@ function ProviderFormFull({
   const { baseUrl, handleClaudeBaseUrlChange } = useBaseUrlState({
     appType: appId,
     category,
-    settingsConfig: form.getValues("settingsConfig"),
+    settingsConfig: watchedSettingsConfig,
     codexConfig: "",
     onSettingsConfigChange: handleSettingsConfigChange,
     onCodexConfigChange: () => {},
@@ -370,7 +373,7 @@ function ProviderFormFull({
     defaultOpusModel,
     handleModelChange,
   } = useModelState({
-    settingsConfig: form.getValues("settingsConfig"),
+    settingsConfig: watchedSettingsConfig,
     onConfigChange: handleSettingsConfigChange,
   });
 
@@ -1909,8 +1912,8 @@ function ProviderFormFull({
               providerId={providerId}
               shouldShowApiKey={
                 (category !== "cloud_provider" ||
-                  hasApiKeyField(form.getValues("settingsConfig"), "claude")) &&
-                shouldShowApiKey(form.getValues("settingsConfig"), isEditMode)
+                  hasApiKeyField(watchedSettingsConfig, "claude")) &&
+                shouldShowApiKey(watchedSettingsConfig, isEditMode)
               }
               apiKey={apiKey}
               onApiKeyChange={handleApiKeyChange}
